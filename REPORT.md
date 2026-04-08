@@ -1,7 +1,5 @@
 # ReMix RF Localization — Experiment Report
 
-![Estimated vs Ground Truth position across all algorithms and tissue conditions. Markers: Patch (circle), Chicken (triangle), Pork (square). Colors: Calibrated (blue), Harmonic Comb (orange), Ensemble (green). The shaded band marks ±20 mm from perfect prediction.](results/overview_predictions.png)
-
 ## Table of Contents
 
 1. [Experimental Setup](#1-experimental-setup)
@@ -87,6 +85,12 @@ Detailed per-axis breakdowns:
 ![Y-axis boxplots](results/boxplot_detailed_y.png)
 
 The Patch/Y calibrated distribution is bimodal: approximately 50% of points have near-perfect accuracy (<15 mm) while approximately 40% have large errors (>170 mm) due to mirror ambiguity (analyzed in Experiment 3).
+
+### Estimated vs Ground Truth: Overview
+
+Each panel shows one condition (tissue × axis). Points lying on the dashed diagonal correspond to perfect prediction; points scattered horizontally indicate the algorithm locked onto a wrong position. The green band marks the ±20 mm region. Patch/X is the only condition where both algorithms track the diagonal consistently; depth (Y) and tissue-covered conditions show progressively larger deviations.
+
+![Overview: estimated vs ground truth position for Calibrated (blue) and Harmonic Comb (orange) across Patch, Chicken, and Pork on the lateral (top row) and depth (bottom row) axes. The green band marks ±20 mm.](results/overview_predictions.png)
 
 ---
 
