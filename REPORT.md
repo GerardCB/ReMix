@@ -1,5 +1,7 @@
 # ReMix RF Localization — Experiment Report
 
+![Estimated vs Ground Truth position across all algorithms and tissue conditions. Markers: Patch (circle), Chicken (triangle), Pork (square). Colors: Calibrated (blue), Harmonic Comb (orange), Ensemble (green). The shaded band marks ±20 mm from perfect prediction.](results/overview_predictions.png)
+
 ## Table of Contents
 
 1. [Experimental Setup](#1-experimental-setup)
