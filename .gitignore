@@ -3,8 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Dataset (too large for GitHub — download separately)
-Remix_Dataset.csv
+# Dataset (too large for GitHub — see data/README.md)
+data/*.csv
 
 # OS files
 .DS_Store
@@ -15,9 +15,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
-
-# Temporary grid search directories (intermediate results)
-grid_search_results_x/
 
 # Reference papers
 *.pdf

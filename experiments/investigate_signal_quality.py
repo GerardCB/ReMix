@@ -16,19 +16,19 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 import sys
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from remix_config import (
+from src.config import (
     C, FREQ_TO_HZ, TX_POS, ALL_HARMONICS,
     rx_positions, target_position,
     CALIBRATION_TARGET_POS,
 )
-from remix_data import (
+from src.data import (
     load_dataset, get_aggregated_data, get_phase_matrix,
     get_available_target_positions,
 )
 
-OUTDIR = Path('results/signal_quality')
+OUTDIR = Path(__file__).resolve().parent.parent / 'results' / 'signal_quality'
 OUTDIR.mkdir(parents=True, exist_ok=True)
 
 # Raw CSV columns: Category, Axis, Frequency, Target_Pos, Antenna_Pos, I, Q, dBm, Phase
@@ -272,7 +272,7 @@ def correlate_power_and_error(df):
     print("\n  Correlating power with localization error...")
 
     try:
-        results_df = pd.read_csv('results/results.csv')
+        results_df = pd.read_csv(Path(__file__).resolve().parent.parent / 'results' / 'results.csv')
     except FileNotFoundError:
         print("  ⚠ results/results.csv not found, skipping")
         return
@@ -347,7 +347,7 @@ def analyze_phase_residuals(df):
     rx_pos = rx_positions()
     tx_pos = TX_POS.copy()
 
-    from remix_localize import TissueModel
+    from src.localize import TissueModel
 
     categories = ['Patch', 'Chicken', 'Pork']
     freqs = ALL_HARMONICS
@@ -507,7 +507,7 @@ def create_diagnosis(df, residual_data):
 
 
 def main():
-    csv_path = 'Remix_Dataset.csv'
+    csv_path = str(Path(__file__).resolve().parent.parent / 'data' / 'Remix_Dataset.csv')
     print(f"Loading dataset from {csv_path} ...")
     df = load_dataset(csv_path)
     print(f"  {len(df):,} rows\n")

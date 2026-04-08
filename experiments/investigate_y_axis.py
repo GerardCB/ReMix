@@ -13,22 +13,22 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 import sys
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from remix_config import (
+from src.config import (
     C, FREQ_TO_HZ, TX_POS, ALL_HARMONICS,
     rx_positions, target_position,
     DEPTH_SEARCH, CALIBRATION_TARGET_POS,
 )
-from remix_data import (
+from src.data import (
     load_dataset, get_aggregated_data, get_phase_matrix,
     get_available_target_positions,
 )
-from remix_localize import (
+from src.localize import (
     TissueModel, CalibratedLocalizer, per_frequency_grid,
 )
 
-OUTDIR = Path('results/y_axis_investigation')
+OUTDIR = Path(__file__).resolve().parent.parent / 'results' / 'y_axis_investigation'
 OUTDIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -359,7 +359,7 @@ def investigate_coarse_vs_fine(df, category='Patch'):
 
 
 def main():
-    csv_path = 'Remix_Dataset.csv'
+    csv_path = str(Path(__file__).resolve().parent.parent / 'data' / 'Remix_Dataset.csv')
     print(f"Loading dataset from {csv_path} ...")
     df = load_dataset(csv_path)
     print(f"  {len(df):,} rows\n")

@@ -20,23 +20,23 @@ from pathlib import Path
 from itertools import combinations
 
 import sys
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from remix_config import (
+from src.config import (
     C, FREQ_TO_HZ, TX_POS, ALL_HARMONICS,
     rx_positions, target_position,
     DEPTH_SEARCH, LATERAL_SEARCH, CALIBRATION_TARGET_POS,
 )
-from remix_data import (
+from src.data import (
     load_dataset, get_aggregated_data, get_phase_matrix,
     get_available_target_positions,
 )
-from remix_localize import (
+from src.localize import (
     TissueModel, CalibratedLocalizer,
     phase_cost, grid_evaluate, _find_local_minima,
 )
 
-OUTDIR = Path('results/improvements')
+OUTDIR = Path(__file__).resolve().parent.parent / 'results' / 'improvements'
 OUTDIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -255,7 +255,7 @@ def ensemble_localize(df, axis, category, top_pairs, n_top=5):
 
 
 def main():
-    csv_path = 'Remix_Dataset.csv'
+    csv_path = str(Path(__file__).resolve().parent.parent / 'data' / 'Remix_Dataset.csv')
     print(f"Loading dataset from {csv_path} ...")
     df = load_dataset(csv_path)
     print(f"  {len(df):,} rows\n")
@@ -393,7 +393,7 @@ def main():
     print(f"{'═' * 70}")
 
     # Load original results too
-    orig_df = pd.read_csv('results/results.csv')
+    orig_df = pd.read_csv(Path(__file__).resolve().parent.parent / 'results' / 'results.csv')
     parts = orig_df['config'].str.extract(
         r'(?P<category>\w+)/(?P<axis>[xy])\s+(?P<freqs>\S+)\s+(?P<approach>\S+)')
     orig_df = pd.concat([orig_df, parts], axis=1)

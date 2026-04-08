@@ -26,7 +26,7 @@ Key insight for phase ambiguity on the depth axis:
 import numpy as np
 from scipy.optimize import brentq, differential_evolution
 
-from remix_config import (
+from src.config import (
     C, FREQ_TO_HZ, TX_POS,
     rx_positions, target_position,
     DEPTH_SEARCH, LATERAL_SEARCH, CALIBRATION_TARGET_POS,

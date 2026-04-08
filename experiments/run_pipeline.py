@@ -14,8 +14,12 @@ Usage:
 """
 
 import argparse
+import sys
 import warnings
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 import numpy as np
 import pandas as pd
@@ -23,17 +27,17 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from remix_config import (
+from src.config import (
     PAIR_A, PAIR_B, ALL_HARMONICS,
     CALIBRATION_TARGET_POS, REFERENCE_DEPTH,
     TISSUE_PROFILES, get_tissue_wall, ALPHA,
     C, FREQ_TO_HZ, TX_POS, rx_positions, target_position,
 )
-from remix_data import (
+from src.data import (
     load_dataset, get_aggregated_data, get_phase_matrix,
     get_available_target_positions,
 )
-from remix_localize import (
+from src.localize import (
     CalibratedLocalizer, GridSearchLocalizer,
     TDOALocalizer, HarmonicCombinationLocalizer,
     per_frequency_grid, TissueModel, phase_cost,
@@ -221,7 +225,7 @@ def plot_phase_diagnostic(agg_df, axis, category, outdir,
     Overlays the model prediction.  This reveals which freq/antenna combos
     have clean data vs noise or model mismatch.
     """
-    from remix_data import get_available_target_positions, get_phase_matrix
+    from src.data import get_available_target_positions, get_phase_matrix
 
     target_positions = get_available_target_positions(agg_df)
     if tp_min is not None or tp_max is not None:

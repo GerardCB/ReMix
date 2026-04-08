@@ -6,9 +6,13 @@ tissues to minimize localization errors.
 """
 
 import argparse
+import sys
 import warnings
 from pathlib import Path
 from itertools import product
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 import numpy as np
 import pandas as pd
@@ -16,16 +20,16 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from remix_config import (
+from src.config import (
     PAIR_A, ALL_HARMONICS, CALIBRATION_TARGET_POS,
     REFERENCE_DEPTH, ALPHA, C, FREQ_TO_HZ, TX_POS, rx_positions,
     target_position, get_tissue_wall, EPS_R,
 )
-from remix_data import (
+from src.data import (
     load_dataset, get_aggregated_data, get_phase_matrix,
     get_available_target_positions,
 )
-from remix_localize import (
+from src.localize import (
     CalibratedLocalizer, TissueModel, phase_cost,
 )
 

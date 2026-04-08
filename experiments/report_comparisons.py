@@ -13,7 +13,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-OUTDIR = Path('results')
+OUTDIR = Path(__file__).resolve().parent.parent / 'results'
 OUTDIR.mkdir(exist_ok=True)
 
 

@@ -23,20 +23,20 @@ from pathlib import Path
 from itertools import combinations
 
 import sys
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from remix_config import (
+from src.config import (
     C, FREQ_TO_HZ, HARMONIC_COEFFS, TX_POS,
     rx_positions, target_position,
     DEPTH_SEARCH, LATERAL_SEARCH, CALIBRATION_TARGET_POS,
 )
-from remix_data import (
+from src.data import (
     load_dataset, get_aggregated_data, get_phase_matrix,
     get_available_target_positions,
 )
-from remix_localize import TissueModel, _find_local_minima
+from src.localize import TissueModel, _find_local_minima
 
-OUTDIR = Path('results')
+OUTDIR = Path(__file__).resolve().parent.parent / 'results'
 OUTDIR.mkdir(exist_ok=True)
 
 F1 = 830e6
@@ -192,7 +192,7 @@ def evaluate_pair(df, freq_a, freq_b, axis, category):
 
 
 def main():
-    csv_path = 'Remix_Dataset.csv'
+    csv_path = str(Path(__file__).resolve().parent.parent / 'data' / 'Remix_Dataset.csv')
     print(f"Loading dataset from {csv_path} ...")
     df = load_dataset(csv_path)
     print(f"  {len(df):,} rows\n")
