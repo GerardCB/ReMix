@@ -170,7 +170,7 @@ class ImprovedCalibratedLocalizer:
 # ══════════════════════════════════════════════════════════════════════════════
 #  IMPROVEMENT 2: Ensemble of frequency-pair localizers
 # ══════════════════════════════════════════════════════════════════════════════
-from report_freq_pairs import GeneralizedHarmonicCombLocalizer
+from experiments.report_freq_pairs import GeneralizedHarmonicCombLocalizer
 
 
 def ensemble_localize(df, axis, category, top_pairs, n_top=5):
@@ -344,7 +344,7 @@ def main():
     print("=" * 70)
 
     # Load the freq pair comparison to get the best pairs per condition
-    freq_pair_df = pd.read_csv('results/freq_pair_comparison.csv')
+    freq_pair_df = pd.read_csv(Path(__file__).resolve().parent.parent / 'results' / 'freq_pair_comparison.csv')
 
     imp2_results = []
 
