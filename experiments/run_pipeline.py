@@ -20,7 +20,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -60,7 +59,7 @@ FREQ_SETS = {
 #  Evaluators
 # ══════════════════════════════════════════════════════════════════════════════
 def evaluate_calibrated(agg_df, axis, frequencies, category,
-                         tp_min=None, tp_max=None):
+                        tp_min=None, tp_max=None):
     """Calibrated localizer with tissue model.
 
     Optionally restrict the set of target positions to the closed
@@ -146,6 +145,9 @@ def evaluate_tdoa(agg_df, axis, frequencies, category, method='de',
                             and (tp_max is None or tp <= tp_max)]
     results = []
     for tp in target_positions:
+        if tp == CALIBRATION_TARGET_POS:
+            continue  # Keep length consistent with other evaluators
+            
         data = get_phase_matrix(agg_df, tp, frequencies)
         if data is None or len(data['freqs']) < 2:
             continue
@@ -161,29 +163,35 @@ def evaluate_tdoa(agg_df, axis, frequencies, category, method='de',
     return results
 
 
-def evaluate_harmonic_comb(agg_df, axis, category,
-                          tp_min=None, tp_max=None):
+def evaluate_harmonic_comb(agg_df, axis, category, frequencies,
+                           tp_min=None, tp_max=None):
     """
     Harmonic-combination approach (ReMix Eq. 14).
-    Requires frequencies 790 (2f₁−f₂) and 1700 (f₁+f₂).
+    Dynamically uses the first two frequencies passed.
     """
     target_positions = get_available_target_positions(agg_df)
     if tp_min is not None or tp_max is not None:
         target_positions = [tp for tp in target_positions
                             if (tp_min is None or tp >= tp_min)
                             and (tp_max is None or tp <= tp_max)]
+                            
+    if len(frequencies) < 2:
+        return []
+        
+    f1, f2 = frequencies[0], frequencies[1]
 
     # Get calibration data for both required frequencies
-    cal_790 = get_phase_matrix(agg_df, CALIBRATION_TARGET_POS, [790])
-    cal_1700 = get_phase_matrix(agg_df, CALIBRATION_TARGET_POS, [1700])
-    if cal_790 is None or cal_1700 is None:
+    cal_f1 = get_phase_matrix(agg_df, CALIBRATION_TARGET_POS, [f1])
+    cal_f2 = get_phase_matrix(agg_df, CALIBRATION_TARGET_POS, [f2])
+    
+    if cal_f1 is None or cal_f2 is None:
         return []
 
     localizer = HarmonicCombinationLocalizer(
-        cal_790['ant_pos'], dataset_axis=axis, category=category,
+        cal_f1['ant_pos'], dataset_axis=axis, category=category,
     )
     localizer.calibrate(
-        cal_790['phases'][:, 0], cal_1700['phases'][:, 0],
+        cal_f1['phases'][:, 0], cal_f2['phases'][:, 0],
         CALIBRATION_TARGET_POS,
     )
 
@@ -191,13 +199,13 @@ def evaluate_harmonic_comb(agg_df, axis, category,
     for tp in target_positions:
         if tp == CALIBRATION_TARGET_POS:
             continue
-        data_790 = get_phase_matrix(agg_df, tp, [790])
-        data_1700 = get_phase_matrix(agg_df, tp, [1700])
-        if data_790 is None or data_1700 is None:
+        data_f1 = get_phase_matrix(agg_df, tp, [f1])
+        data_f2 = get_phase_matrix(agg_df, tp, [f2])
+        if data_f1 is None or data_f2 is None:
             continue
         try:
             est_tp, cost = localizer.localize(
-                data_790['phases'][:, 0], data_1700['phases'][:, 0])
+                data_f1['phases'][:, 0], data_f2['phases'][:, 0])
         except Exception as e:
             print(f"\n    ✗ tp={tp}: {e}")
             continue
@@ -251,7 +259,7 @@ def plot_phase_diagnostic(agg_df, axis, category, outdir,
                              squeeze=False, sharex=True)
     fig.suptitle(f'Phase diagnostic: {category} / axis={axis}\n'
                  f'Δφ(measured) vs Δφ(model) relative to TP=0',
-                 fontsize=12, y=1.01)
+                 fontsize=16, y=1.01)
 
     freq_hz = np.array([FREQ_TO_HZ[f] for f in cal_data['freqs']])
 
@@ -293,10 +301,10 @@ def plot_phase_diagnostic(agg_df, axis, category, outdir,
             ax.grid(True, alpha=0.15)
             if fi == 0:
                 ax.set_title(f'Ant {cal_data["ant_pos"][ai]:.0f}mm',
-                             fontsize=9)
+                             fontsize=12)
             if ai == 0:
                 ax.set_ylabel(f'{cal_data["freqs"][fi]} MHz\nΔφ (°)',
-                              fontsize=8)
+                              fontsize=12)
             if fi == n_freq - 1:
                 ax.set_xlabel('Target Pos (mm)')
 
@@ -341,7 +349,7 @@ def plot_cost_landscape(agg_df, axis, category, outdir, n_examples=4,
 
     fig, axes = plt.subplots(n_examples, 2, figsize=(14, 3.5 * n_examples),
                              squeeze=False)
-    fig.suptitle(f'Cost landscape: {category} / axis={axis}', fontsize=12)
+    fig.suptitle(f'Cost landscape: {category} / axis={axis}', fontsize=16)
 
     for row, true_tp in enumerate(example_tps):
         data = get_phase_matrix(agg_df, true_tp, freqs)
@@ -368,7 +376,7 @@ def plot_cost_landscape(agg_df, axis, category, outdir, n_examples=4,
                    label=f'truth={true_tp:.0f}')
         ax.set_ylabel('Normalized cost')
         ax.set_title(f'TP={true_tp:.0f}mm — per frequency')
-        ax.legend(fontsize=6, ncol=4)
+        ax.legend(fontsize=12, ncol=4)
         ax.grid(True, alpha=0.15)
 
         # Right: joint
@@ -382,7 +390,7 @@ def plot_cost_landscape(agg_df, axis, category, outdir, n_examples=4,
         ax.set_ylabel('Joint cost')
         ax.set_title(f'TP={true_tp:.0f}mm — joint (est={best_est:.0f}mm, '
                      f'err={abs(best_est-true_tp):.0f}mm)')
-        ax.legend(fontsize=7)
+        ax.legend(fontsize=12)
         ax.grid(True, alpha=0.15)
 
     plt.tight_layout()
@@ -426,7 +434,7 @@ def plot_estimation(all_results, axis, outdir):
         ax.set_xlabel(f'GT Target_Pos (mm) [{dim}]')
         ax.set_ylabel(f'Estimated Target_Pos (mm)')
         ax.set_title(f'{label}\nmean={mean_err:.0f}mm  med={med_err:.0f}mm')
-        ax.legend(fontsize=7)
+        ax.legend(fontsize=12)
         ax.grid(True, alpha=0.2)
         ax.set_xlim(lo, hi)
         ax.set_ylim(lo, hi)
@@ -462,7 +470,7 @@ def plot_error_vs_position(all_results, axis, outdir):
         ax.set_xlabel('Target_Pos (mm)')
         ax.set_ylabel('Error (mm)')
         ax.set_title(label)
-        ax.legend(fontsize=7)
+        ax.legend(fontsize=12)
         ax.grid(True, alpha=0.25)
 
     for idx in range(n, rows * cols):
@@ -485,7 +493,7 @@ def plot_cdf(all_results, outdir):
     ax.set_xlabel('Localization Error (mm)')
     ax.set_ylabel('CDF')
     ax.set_title('Cumulative Distribution of Localization Error')
-    ax.legend(fontsize=7, loc='lower right')
+    ax.legend(fontsize=12, loc='lower right')
     ax.grid(True, alpha=0.25)
     ax.set_xlim(left=0)
     ax.set_ylim(0, 1.05)
@@ -515,7 +523,7 @@ def plot_summary_bars(all_results, outdir):
     ax.bar(x,     medians, w, label='Median', alpha=0.85)
     ax.bar(x + w, p90s,    w, label='P90',    alpha=0.85)
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, rotation=40, ha='right', fontsize=7)
+    ax.set_xticklabels(labels, rotation=40, ha='right', fontsize=12)
     ax.set_ylabel('Localization Error (mm)')
     ax.set_title('Localization Error Summary')
     ax.legend()
@@ -560,15 +568,15 @@ def plot_2d_predictions(all_results_x, all_results_y, outdir):
         lo, hi = -200, 200
         ax.plot([lo, hi], [lo, hi], 'k--', lw=1, alpha=0.3)
         
-        ax.set_xlabel('Ground Truth Target Pos (mm)', fontsize=10)
-        ax.set_ylabel('Estimated Target Pos (mm)', fontsize=10)
-        ax.set_title(f'{axis_name} Dataset', fontsize=11, fontweight='bold')
+        ax.set_xlabel('Ground Truth Target Pos (mm)', fontsize=14)
+        ax.set_ylabel('Estimated Target Pos (mm)', fontsize=14)
+        ax.set_title(f'{axis_name} Dataset', fontsize=16, fontweight='bold')
         ax.grid(True, alpha=0.2)
         ax.set_xlim(lo, hi)
         ax.set_ylim(lo, hi)
         ax.set_aspect('equal')
         if idx == 1:
-            ax.legend(fontsize=8, loc='upper left')
+            ax.legend(fontsize=12, loc='upper left')
     
     plt.tight_layout()
     fig.savefig(outdir / 'predictions_2d.png', dpi=150, bbox_inches='tight')
@@ -690,14 +698,6 @@ def main():
                 freqs = FREQ_SETS[freq_label]
 
                 for approach in args.approach:
-                    # harmon ic combination only uses pair_a (790/1700) and
-                    # identical for any other freq_label, so skip duplicates
-                    if approach == 'harmonic_comb' and freq_label != 'pair_a':
-                        continue
-                    # calibrated evaluation generally uses full set; skip
-                    # smaller sets if user provided them
-                    if approach == 'calibrated' and freq_label != 'all':
-                        continue
 
                     tag = f"{category}/{axis}  {freq_label:<12s}  {approach}"
                     print(f"  ▸ {tag}", end='', flush=True)
@@ -720,8 +720,7 @@ def main():
                                             tp_min=tp_min, tp_max=tp_max)
 
                     elif approach == 'harmonic_comb':
-                        # Harmonic combination uses fixed freq pair [790, 1700]
-                        res = evaluate_harmonic_comb(agg, axis, category,
+                        res = evaluate_harmonic_comb(agg, axis, category, freqs,
                                                      tp_min=tp_min, tp_max=tp_max)
 
                     else:

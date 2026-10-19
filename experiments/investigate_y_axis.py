@@ -76,7 +76,7 @@ def investigate_cost_landscape(df, category='Patch'):
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 3 * n_rows))
     axes = axes.flatten() if n_pos > 1 else [axes]
     fig.suptitle(f'{category} / Y-axis: Joint Cost Landscape for Each Position',
-                 fontsize=14, fontweight='bold', y=1.01)
+                 fontsize=18, fontweight='bold', y=1.01)
     
     errors = []
     
@@ -87,7 +87,7 @@ def investigate_cost_landscape(df, category='Patch'):
         
         data = get_phase_matrix(agg, tp, freqs)
         if data is None:
-            ax.set_title(f'TP={tp:.0f} — no data', fontsize=8)
+            ax.set_title(f'TP={tp:.0f} — no data', fontsize=12)
             continue
         
         meas_rad = np.deg2rad(data['phases'])
@@ -129,10 +129,12 @@ def investigate_cost_landscape(df, category='Patch'):
             color = 'red'
         
         ax.set_title(f'TP={tp:.0f}  est={est_tp:.0f}  err={error:.0f}mm',
-                     fontsize=7, color=color, fontweight='bold')
+                     fontsize=12, color=color, fontweight='bold')
         ax.set_xlim(-200, 200)
         ax.grid(True, alpha=0.15)
-        ax.tick_params(labelsize=6)
+        
+        # Explicitly set tick labels to 12
+        ax.tick_params(axis='both', which='major', labelsize=12)
     
     # Hide unused axes
     for pi in range(len(test_positions), len(axes)):
@@ -180,7 +182,7 @@ def investigate_phase_wrapping(df, category='Patch'):
     fig, axes = plt.subplots(n_freq, 2, figsize=(14, 3 * n_freq), squeeze=False)
     fig.suptitle(f'{category} / Y-axis: Phase Measurements vs Model\n'
                  f'(Center antenna, ant_pos=0mm)',
-                 fontsize=13, fontweight='bold', y=1.01)
+                 fontsize=16, fontweight='bold', y=1.01)
     
     model_tp = np.arange(-200, 201, 1.0)
     
@@ -228,9 +230,13 @@ def investigate_phase_wrapping(df, category='Patch'):
         ax.set_ylabel(f'{freq} MHz\nΔφ (°) wrapped')
         ax.set_xlabel('Target Pos (mm)')
         ax.grid(True, alpha=0.15)
-        ax.legend(fontsize=7)
+        ax.legend(fontsize=12)
+        
+        # Set tick labels to 12
+        ax.tick_params(axis='both', which='major', labelsize=12)
+        
         if fi == 0:
-            ax.set_title('Wrapped Δφ', fontsize=10)
+            ax.set_title('Wrapped Δφ', fontsize=14)
         
         # Right: unwrapped model to show how many times it wraps
         ax = axes[fi][1]
@@ -240,11 +246,14 @@ def investigate_phase_wrapping(df, category='Patch'):
         wrap_period = C / (2 * f_hz) * 1000  # mm
         n_wraps = 400 / wrap_period
         ax.set_title(f'Unwrapped model: λ_wrap={wrap_period:.0f}mm, '
-                    f'{n_wraps:.1f} wraps over ±200mm', fontsize=8)
+                    f'{n_wraps:.1f} wraps over ±200mm', fontsize=12)
         ax.set_xlabel('Target Pos (mm)')
         ax.set_ylabel('Δφ (°) unwrapped')
         ax.grid(True, alpha=0.15)
-        ax.legend(fontsize=7)
+        ax.legend(fontsize=12)
+        
+        # Set tick labels to 12
+        ax.tick_params(axis='both', which='major', labelsize=12)
     
     plt.tight_layout()
     fig.savefig(OUTDIR / f'phase_wrapping_{category}.png',
@@ -290,7 +299,7 @@ def investigate_coarse_vs_fine(df, category='Patch'):
                                   figsize=(18, 3 * len(selected)),
                                   squeeze=False)
     fig.suptitle(f'{category} / Y-axis: Coarse vs Fine Cost Landscape',
-                 fontsize=14, fontweight='bold', y=1.01)
+                 fontsize=18, fontweight='bold', y=1.01)
     
     for ri, tp in enumerate(selected):
         data = get_phase_matrix(agg, tp, ALL_HARMONICS)
@@ -323,9 +332,10 @@ def investigate_coarse_vs_fine(df, category='Patch'):
         ax.axvline(tp, color='green', ls='--', lw=1.5, label=f'true={tp:.0f}')
         ax.axvline(coarse_min, color='red', ls=':', lw=1.5,
                   label=f'min={coarse_min:.0f}')
-        ax.set_title(f'TP={tp:.0f} — Coarse (790+910)', fontsize=9)
-        ax.legend(fontsize=7)
+        ax.set_title(f'TP={tp:.0f} — Coarse (790+910)', fontsize=14)
+        ax.legend(fontsize=12)
         ax.grid(True, alpha=0.15)
+        ax.tick_params(axis='both', which='major', labelsize=12)
         
         # Plot fine
         ax = axes_arr[ri][1]
@@ -334,9 +344,10 @@ def investigate_coarse_vs_fine(df, category='Patch'):
         fine_min = grid[np.argmin(fine_cost)]
         ax.axvline(fine_min, color='red', ls=':', lw=1.5,
                   label=f'min={fine_min:.0f}')
-        ax.set_title(f'Fine (5 higher freqs)', fontsize=9)
-        ax.legend(fontsize=7)
+        ax.set_title(f'Fine (5 higher freqs)', fontsize=14)
+        ax.legend(fontsize=12)
         ax.grid(True, alpha=0.15)
+        ax.tick_params(axis='both', which='major', labelsize=12)
         
         # Plot joint
         ax = axes_arr[ri][2]
@@ -347,9 +358,10 @@ def investigate_coarse_vs_fine(df, category='Patch'):
         coarse_err = abs(coarse_min - tp)
         joint_err = abs(joint_min - tp)
         ax.set_title(f'Joint — c_err={coarse_err:.0f}, j_err={joint_err:.0f}',
-                     fontsize=9)
-        ax.legend(fontsize=7)
+                     fontsize=14)
+        ax.legend(fontsize=12)
         ax.grid(True, alpha=0.15)
+        ax.tick_params(axis='both', which='major', labelsize=12)
     
     plt.tight_layout()
     fig.savefig(OUTDIR / f'coarse_vs_fine_{category}.png',

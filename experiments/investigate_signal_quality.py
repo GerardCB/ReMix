@@ -2,7 +2,7 @@
 investigate_signal_quality.py — Is the problem attenuation or algorithm?
 
 Analyzes:
-1. Received power levels across Patch/Chicken/Pork
+1. Received power levels across Patch/Chicken/Pork via clean, BW-optimized CDF curves
 2. Power vs localization error correlation
 3. Phase coherence / standard deviation across sweeps
 4. SNR estimation and breakdown of where signal is reliable vs not
@@ -31,50 +31,75 @@ from src.data import (
 OUTDIR = Path(__file__).resolve().parent.parent / 'results' / 'signal_quality'
 OUTDIR.mkdir(parents=True, exist_ok=True)
 
-# Raw CSV columns: Category, Axis, Frequency, Target_Pos, Antenna_Pos, I, Q, dBm, Phase
+# Global style mapping to ensure high visibility in black and white printouts
+LINE_STYLES = [
+    {'color': '#1f77b4', 'linestyle': '-', 'marker': 'o'},   # Solid line + Circle
+    {'color': '#ff7f0e', 'linestyle': '--', 'marker': 's'},  # Dashed line + Square
+    {'color': '#2ca02c', 'linestyle': ':', 'marker': '^'},   # Dotted line + Triangle Up
+    {'color': '#d62728', 'linestyle': '-.', 'marker': 'v'},  # Dash-dot line + Triangle Down
+    {'color': '#9467bd', 'linestyle': '-', 'marker': 'D'},   # Solid line + Diamond
+    {'color': '#8c564b', 'linestyle': '--', 'marker': 'X'},  # Dashed line + X marker
+    {'color': '#e377c2', 'linestyle': ':', 'marker': '*'},   # Dotted line + Star
+]
 
 
 def analyze_raw_power(df):
     """
-    Look at the raw power levels before aggregation.
+    Look at the raw power levels before aggregation using Cumulative Distribution Functions (CDF).
+    Optimized for black-and-white printing and clean layout structures.
     """
-    print("  Analyzing raw power levels...")
+    print("  Analyzing raw power levels via BW-optimized CDF curves...")
 
     categories = ['Patch', 'Chicken', 'Pork']
 
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-    fig.suptitle('Received Power Distribution by Condition\n'
+    fig.suptitle('Received Power Cumulative Distribution (CDF) by Condition\n'
                  '(All antennas, all frequencies, all positions)',
-                 fontsize=14, fontweight='bold')
+                 fontsize=18, fontweight='bold')
 
     for ai, axis in enumerate(['x', 'y']):
         dim = 'X' if axis == 'x' else 'Y'
         for ci, category in enumerate(categories):
             ax = axes[ai][ci]
+            
+            title_text = f'{category}/{dim}'
+            ax.set_title(title_text, fontsize=14, fontweight='bold')
+            
             sub = df[(df['Category'] == category) & (df['Axis'] == axis)]
             if sub.empty:
-                ax.set_title(f'{category}/{dim} — no data')
+                ax.set_title(f'{title_text} — no data', fontsize=14, fontweight='bold')
                 continue
 
-            for freq in ALL_HARMONICS:
+            for fi, freq in enumerate(ALL_HARMONICS):
                 fsub = sub[sub['Frequency'] == freq]
                 if fsub.empty:
                     continue
-                powers = fsub['dBm'].dropna()
+                powers = fsub['dBm'].dropna().values
                 if len(powers) > 0:
-                    ax.hist(powers, bins=30, alpha=0.4, label=f'{freq}MHz',
-                           density=True)
+                    sorted_powers = np.sort(powers)
+                    cdf = np.arange(1, len(sorted_powers) + 1) / len(sorted_powers)
+                    
+                    st = LINE_STYLES[fi % len(LINE_STYLES)]
+                    ax.plot(sorted_powers, cdf, lw=2.5, label=f'{freq}MHz', alpha=0.85,
+                            color=st['color'], linestyle=st['linestyle'], 
+                            marker=st['marker'], markevery=0.1, ms=6)
 
-            ax.set_xlabel('Power (dBm)')
-            ax.set_ylabel('Density')
-            ax.set_title(f'{category}/{dim}', fontsize=11, fontweight='bold')
-            ax.legend(fontsize=6, ncol=2)
-            ax.grid(True, alpha=0.15)
+            if 'X' not in title_text:
+                ax.set_xlabel('Power (dBm)', fontsize=14)
+            
+            if ci == 0:
+                ax.set_ylabel('Cumulative Probability (CDF)', fontsize=14)
+                
+            ax.legend(fontsize=11, ncol=2, loc='lower right')
+            ax.grid(True, alpha=0.2)
+            ax.set_ylim(0.0, 1.05)
+            ax.axhline(0.5, color='gray', linestyle=':', alpha=0.5, zorder=1)
+            ax.tick_params(axis='both', which='major', labelsize=12)
 
     plt.tight_layout()
     fig.savefig(OUTDIR / 'power_distribution.png', dpi=150, bbox_inches='tight')
     plt.close(fig)
-    print(f"  ✓ Saved power_distribution.png")
+    print(f"  ✓ Saved power_distribution.png (CDF Format)")
 
     # Summary table
     print(f"\n  {'Category':<10} {'Axis':<5} {'Freq':>6} {'Mean dBm':>10} {'Std':>6} "
@@ -120,14 +145,17 @@ def analyze_phase_stability(df):
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
     fig.suptitle('Phase Standard Deviation Across Sweeps\n'
                  '(Low = reliable signal, High = noise-dominated)',
-                 fontsize=14, fontweight='bold')
+                 fontsize=18, fontweight='bold')
 
     for ai, axis in enumerate(['x', 'y']):
         dim = 'X' if axis == 'x' else 'Y'
         for ci, category in enumerate(categories):
             ax = axes[ai][ci]
+            
+            title_text = f'{category}/{dim}'
+            ax.set_title(title_text, fontsize=14, fontweight='bold')
 
-            for freq in [790, 910, 1700]:
+            for fi, freq in enumerate([790, 910, 1700]):
                 sub = df[(df['Category'] == category) &
                          (df['Axis'] == axis) &
                          (df['Frequency'] == freq)]
@@ -138,17 +166,23 @@ def analyze_phase_stability(df):
                 pos_std = grouped.groupby('Target_Pos').mean()
 
                 if len(pos_std) > 0:
-                    ax.plot(pos_std.index, pos_std.values, 'o-', ms=3,
-                           label=f'{freq}MHz', alpha=0.7)
+                    st = LINE_STYLES[fi % len(LINE_STYLES)]
+                    ax.plot(pos_std.index, pos_std.values, alpha=0.8, lw=1.5,
+                            label=f'{freq}MHz', color=st['color'], 
+                            linestyle=st['linestyle'], marker=st['marker'], ms=5)
 
-            ax.set_xlabel('Target Position (mm)')
-            ax.set_ylabel('Phase Std Dev (°)')
-            ax.set_title(f'{category}/{dim}', fontsize=11, fontweight='bold')
-            ax.legend(fontsize=8)
+            if 'X' not in title_text:
+                ax.set_xlabel('Target Position (mm)', fontsize=14)
+            
+            if ci == 0:
+                ax.set_ylabel('Phase Std Dev (°)', fontsize=14)
+                
+            ax.legend(fontsize=12, loc='lower right')
             ax.grid(True, alpha=0.15)
             ax.axhline(10, color='green', ls='--', alpha=0.4)
             ax.axhline(30, color='orange', ls='--', alpha=0.4)
             ax.axhline(90, color='red', ls='--', alpha=0.4)
+            ax.tick_params(axis='both', which='major', labelsize=12)
 
     plt.tight_layout()
     fig.savefig(OUTDIR / 'phase_stability.png', dpi=150, bbox_inches='tight')
@@ -167,22 +201,24 @@ def analyze_power_vs_position(df):
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
     fig.suptitle('Mean Received Power vs Target Position\n'
                  '(Center antenna — Antenna_Pos closest to 0)',
-                 fontsize=14, fontweight='bold')
+                 fontsize=18, fontweight='bold')
 
     for ai, axis in enumerate(['x', 'y']):
         dim = 'X' if axis == 'x' else 'Y'
         for ci, category in enumerate(categories):
             ax = axes[ai][ci]
+            
+            title_text = f'{category}/{dim}'
+            ax.set_title(title_text, fontsize=14, fontweight='bold')
 
-            # Find center antenna position
             positions = df[(df['Category'] == category) &
-                          (df['Axis'] == axis)]['Antenna_Pos'].unique()
+                           (df['Axis'] == axis)]['Antenna_Pos'].unique()
             if len(positions) == 0:
-                ax.set_title(f'{category}/{dim} — no data')
+                ax.set_title(f'{title_text} — no data', fontsize=14, fontweight='bold')
                 continue
             center_ant = positions[np.argmin(np.abs(positions))]
 
-            for freq in ALL_HARMONICS:
+            for fi, freq in enumerate(ALL_HARMONICS):
                 sub = df[(df['Category'] == category) &
                          (df['Axis'] == axis) &
                          (df['Frequency'] == freq) &
@@ -193,14 +229,20 @@ def analyze_power_vs_position(df):
                 mean_power = sub.groupby('Target_Pos')['dBm'].mean()
                 tp_vals = mean_power.index[mean_power.index > -900]
                 if len(tp_vals) > 0:
-                    ax.plot(tp_vals, mean_power[tp_vals], 'o-', ms=3,
-                           label=f'{freq}MHz', alpha=0.7, lw=1)
+                    st = LINE_STYLES[fi % len(LINE_STYLES)]
+                    ax.plot(tp_vals, mean_power[tp_vals], alpha=0.8, lw=1.5,
+                            label=f'{freq}MHz', color=st['color'], 
+                            linestyle=st['linestyle'], marker=st['marker'], ms=5)
 
-            ax.set_xlabel('Target Position (mm)')
-            ax.set_ylabel('Mean Power (dBm)')
-            ax.set_title(f'{category}/{dim}', fontsize=11, fontweight='bold')
-            ax.legend(fontsize=6, ncol=2)
+            if 'X' not in title_text:
+                ax.set_xlabel('Target Position (mm)', fontsize=14)
+            
+            if ci == 0:
+                ax.set_ylabel('Mean Power (dBm)', fontsize=14)
+                
+            ax.legend(fontsize=12, ncol=2, loc='lower right')
             ax.grid(True, alpha=0.15)
+            ax.tick_params(axis='both', which='major', labelsize=12)
 
     plt.tight_layout()
     fig.savefig(OUTDIR / 'power_vs_position.png', dpi=150, bbox_inches='tight')
@@ -217,20 +259,20 @@ def analyze_attenuation_by_tissue(df):
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     fig.suptitle('Tissue Attenuation Relative to Free-Space (Patch)\n'
                  'Power_Patch - Power_Tissue at same position (1700 MHz)',
-                 fontsize=14, fontweight='bold')
+                 fontsize=18, fontweight='bold')
 
     for ai, axis in enumerate(['x', 'y']):
         dim = 'X' if axis == 'x' else 'Y'
         ax = axes[ai]
 
-        for category in ['Chicken', 'Pork']:
+        for ci, category in enumerate(['Chicken', 'Pork']):
             freq = 1700
             sub_patch = df[(df['Category'] == 'Patch') &
-                          (df['Axis'] == axis) &
-                          (df['Frequency'] == freq)]
-            sub_tissue = df[(df['Category'] == category) &
                            (df['Axis'] == axis) &
                            (df['Frequency'] == freq)]
+            sub_tissue = df[(df['Category'] == category) &
+                            (df['Axis'] == axis) &
+                            (df['Frequency'] == freq)]
 
             if sub_patch.empty or sub_tissue.empty:
                 continue
@@ -238,7 +280,6 @@ def analyze_attenuation_by_tissue(df):
             patch_power = sub_patch.groupby('Target_Pos')['dBm'].mean()
             tissue_power = sub_tissue.groupby('Target_Pos')['dBm'].mean()
 
-            # Only real target positions
             patch_power = patch_power[patch_power.index > -900]
             tissue_power = tissue_power[tissue_power.index > -900]
 
@@ -247,15 +288,22 @@ def analyze_attenuation_by_tissue(df):
                 continue
 
             attenuation = patch_power[common] - tissue_power[common]
-            ax.plot(common, attenuation, 'o-', ms=4,
-                   label=f'{category} (mean={attenuation.mean():.1f}dB)', lw=1.5)
+            st = LINE_STYLES[ci % len(LINE_STYLES)]
+            ax.plot(common, attenuation, lw=1.5,
+                    label=f'{category} (mean={attenuation.mean():.1f}dB)',
+                    color=st['color'], linestyle=st['linestyle'], marker=st['marker'], ms=5)
 
-        ax.set_xlabel('Target Position (mm)')
-        ax.set_ylabel('Attenuation (dB)')
-        ax.set_title(f'{dim}-axis / 1700 MHz', fontsize=11, fontweight='bold')
-        ax.legend(fontsize=9)
+        title_text = f'{dim}-axis / 1700 MHz'
+        ax.set_title(title_text, fontsize=14, fontweight='bold')
+        
+        if 'X' not in title_text:
+            ax.set_xlabel('Target Position (mm)', fontsize=14)
+            
+        ax.set_ylabel('Attenuation (dB)', fontsize=14)
+        ax.legend(fontsize=12, loc='lower right')
         ax.grid(True, alpha=0.15)
         ax.axhline(0, color='gray', ls='--', alpha=0.3)
+        ax.tick_params(axis='both', which='major', labelsize=12)
 
     plt.tight_layout()
     fig.savefig(OUTDIR / 'tissue_attenuation.png', dpi=150, bbox_inches='tight')
@@ -267,7 +315,6 @@ def correlate_power_and_error(df):
     """
     Scatter: power vs localization error.
     Positive correlation → attenuation is the bottleneck.
-    No correlation → algorithm is the bottleneck.
     """
     print("\n  Correlating power with localization error...")
 
@@ -282,15 +329,17 @@ def correlate_power_and_error(df):
     fig, axes_arr = plt.subplots(2, 3, figsize=(18, 10))
     fig.suptitle('Localization Error vs Mean Received Power\n'
                  'Negative correlation → weaker signal = more error = attenuation problem',
-                 fontsize=14, fontweight='bold')
+                 fontsize=18, fontweight='bold')
 
-    # Pre-compute mean power per (category, axis, target_pos)
     agg_power = df.groupby(['Category', 'Axis', 'Target_Pos'])['dBm'].mean()
 
     for ai, axis in enumerate(['x', 'y']):
         dim = 'X' if axis == 'x' else 'Y'
         for ci, category in enumerate(categories):
             ax = axes_arr[ai][ci]
+            
+            title_text = f'{category}/{dim}'
+            ax.set_title(title_text, fontsize=14, fontweight='bold')
 
             for approach, color, marker in [
                 ('harmonic_comb', 'blue', 'o'),
@@ -315,22 +364,27 @@ def correlate_power_and_error(df):
                         continue
 
                 if powers:
-                    ax.scatter(powers, errors, alpha=0.5, s=20,
-                             color=color, marker=marker, label=approach)
+                    ax.scatter(powers, errors, alpha=0.6, s=35,
+                               color=color, marker=marker, label=approach,
+                               edgecolors='black', linewidths=0.5)
 
                     if len(powers) > 3:
                         corr = np.corrcoef(powers, errors)[0, 1]
                         y_pos = 0.98 if approach == 'harmonic_comb' else 0.90
                         ax.text(0.02, y_pos,
                                f'{approach}: r={corr:.2f}',
-                               transform=ax.transAxes, fontsize=8, va='top',
+                               transform=ax.transAxes, fontsize=12, va='top',
                                color=color)
 
-            ax.set_xlabel('Mean Power (dBm)')
-            ax.set_ylabel('Error (mm)')
-            ax.set_title(f'{category}/{dim}', fontsize=11, fontweight='bold')
-            ax.legend(fontsize=7)
+            if 'X' not in title_text:
+                ax.set_xlabel('Mean Power (dBm)', fontsize=14)
+            
+            if ci == 0:
+                ax.set_ylabel('Error (mm)', fontsize=14)
+                
+            ax.legend(fontsize=12, loc='lower right')
             ax.grid(True, alpha=0.15)
+            ax.tick_params(axis='both', which='major', labelsize=12)
 
     plt.tight_layout()
     fig.savefig(OUTDIR / 'power_error_correlation.png', dpi=150, bbox_inches='tight')
@@ -341,6 +395,7 @@ def correlate_power_and_error(df):
 def analyze_phase_residuals(df):
     """
     Phase prediction residual per position — reveals model quality.
+    Legends in top left corner, Mean metric text boxes shifted cleanly to the top right corner.
     """
     print("\n  Analyzing phase model residuals...")
 
@@ -356,7 +411,7 @@ def analyze_phase_residuals(df):
     fig.suptitle('Phase Prediction Residual vs Target Position\n'
                  '|exp(jΔφ_meas) - exp(jΔφ_model)| avg.  '
                  '0 = perfect, 2 = completely wrong',
-                 fontsize=14, fontweight='bold')
+                 fontsize=18, fontweight='bold')
 
     residual_data = []
 
@@ -364,10 +419,13 @@ def analyze_phase_residuals(df):
         dim = 'X' if axis == 'x' else 'Y'
         for ci, category in enumerate(categories):
             ax = axes_arr[ai][ci]
+            
+            title_text = f'{category}/{dim}'
+            ax.set_title(title_text, fontsize=14, fontweight='bold')
 
             agg = get_aggregated_data(df, category, axis)
             if agg.empty:
-                ax.set_title(f'{category}/{dim} — no data')
+                ax.set_title(f'{title_text} — no data', fontsize=14, fontweight='bold')
                 continue
 
             target_positions = get_available_target_positions(agg)
@@ -419,27 +477,35 @@ def analyze_phase_residuals(df):
                 })
 
             if tps_list:
-                ax.plot(tps_list, mean_residuals, 'ko-', ms=4, lw=1.5,
+                ax.plot(tps_list, mean_residuals, color='black', linestyle='-', marker='o', ms=5, lw=2,
                        label='All freqs avg', zorder=5)
-                for f in [790, 1700]:
+                
+                for fi, f in enumerate([790, 1700]):
                     if per_freq_residuals[f]:
-                        ax.plot(tps_list, per_freq_residuals[f], '--', ms=2,
-                               alpha=0.5, label=f'{f}MHz', lw=1)
+                        st = LINE_STYLES[(fi + 1) % len(LINE_STYLES)]
+                        ax.plot(tps_list, per_freq_residuals[f], alpha=0.7, lw=1.2,
+                               label=f'{f}MHz', color=st['color'], 
+                               linestyle=st['linestyle'], marker=st['marker'], ms=4)
 
-            ax.set_xlabel('Target Position (mm)')
-            ax.set_ylabel('Mean Residual')
-            ax.set_title(f'{category}/{dim}', fontsize=11, fontweight='bold')
-            ax.legend(fontsize=7)
+            if 'X' not in title_text:
+                ax.set_xlabel('Target Position (mm)', fontsize=14)
+            
+            if ci == 0:
+                ax.set_ylabel('Mean Residual', fontsize=14)
+                
+            ax.legend(fontsize=12, loc='upper left')
             ax.grid(True, alpha=0.15)
             ax.set_ylim(0, 2.1)
             ax.axhspan(0, 0.5, alpha=0.05, color='green')
             ax.axhspan(0.5, 1.0, alpha=0.05, color='orange')
             ax.axhspan(1.0, 2.0, alpha=0.05, color='red')
+            ax.tick_params(axis='both', which='major', labelsize=12)
 
+            # Relocated bounding box coordinate directly to the top right corner (0.98, 0.98)
             if mean_residuals:
                 mean_overall = np.mean(mean_residuals)
                 ax.text(0.98, 0.98, f'Mean: {mean_overall:.2f}',
-                       transform=ax.transAxes, fontsize=10, va='top', ha='right',
+                       transform=ax.transAxes, fontsize=14, va='top', ha='right',
                        bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
     plt.tight_layout()
@@ -479,11 +545,9 @@ def create_diagnosis(df, residual_data):
 
             mean_power = sub['dBm'].mean()
 
-            # Phase std across sweeps
             phase_std = sub.groupby(
                 ['Target_Pos', 'Antenna_Pos'])['Phase'].std().mean()
 
-            # Model residual
             res = [r for r in residual_data
                    if r['category'] == category and r['axis'] == dim]
             mean_res = np.mean([r['mean_residual'] for r in res]) if res else 999

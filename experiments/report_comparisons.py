@@ -12,6 +12,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from pathlib import Path
+import scipy.stats as stats
+
 
 OUTDIR = Path(__file__).resolve().parent.parent / 'results'
 OUTDIR.mkdir(exist_ok=True)
@@ -57,7 +59,7 @@ def make_median_tables(df):
         ax.axis('off')
         dim = 'Lateral (X)' if axis == 'x' else 'Depth (Y)'
         ax.set_title(f'Median Localization Error — {dim} Axis',
-                     fontsize=13, fontweight='bold', pad=20)
+                     fontsize=20, fontweight='bold', pad=20)
         
         cell_text = []
         for _, row in table_df.iterrows():
@@ -94,7 +96,7 @@ def make_median_tables(df):
             cellLoc='center',
         )
         table.auto_set_font_size(False)
-        table.set_fontsize(11)
+        table.set_fontsize(18)
         table.scale(1.0, 2.0)
         
         # Bold header
@@ -126,7 +128,6 @@ def make_boxplots(df):
         # Collect data for grouped boxplot
         positions = []
         data_list = []
-        tick_labels = []
         box_colors = []
         
         group_width = 2.5
@@ -137,33 +138,44 @@ def make_boxplots(df):
             for ai, (app, label) in enumerate(zip(approaches, approach_labels)):
                 mask = (sub['category'] == cat) & (sub['approach'] == app)
                 errors = sub.loc[mask, 'error'].values
+                
+                pos = center + (ai - 0.5) * 1.0
+                positions.append(pos)
+                box_colors.append(colors[ai])
+                
                 if len(errors) > 0:
-                    pos = center + (ai - 0.5) * 1.0
-                    positions.append(pos)
                     data_list.append(errors)
-                    box_colors.append(colors[ai])
-                    if ai == 0:
-                        tick_labels.append(cat)
-        
-        bp = ax.boxplot(data_list, positions=positions, widths=box_width,
-                       patch_artist=True, showfliers=True,
-                       flierprops=dict(marker='o', markersize=4, alpha=0.5),
-                       medianprops=dict(color='black', linewidth=2),
-                       whiskerprops=dict(linewidth=1.2),
-                       capprops=dict(linewidth=1.2))
-        
-        for patch, color in zip(bp['boxes'], box_colors):
-            patch.set_facecolor(color)
-            patch.set_alpha(0.7)
-        
-        # X-axis labels
-        cat_positions = [gi * group_width for gi in range(len(categories))]
-        ax.set_xticks(cat_positions)
-        ax.set_xticklabels(categories, fontsize=12)
+                else:
+                    data_list.append([])
         
         dim = 'Lateral (X)' if axis == 'x' else 'Depth (Y)'
-        ax.set_title(f'{dim} Axis — Error Distribution', fontsize=13, fontweight='bold')
-        ax.set_ylabel('Localization Error (mm)', fontsize=11)
+        ax.set_title(f'{dim} Axis — Error Distribution', fontsize=18, fontweight='bold')
+        
+        # Modified condition logic: Only assign the label string if it is the left plot (idx == 0)
+        ax.set_ylabel('Localization Error (mm)' if idx == 0 else '', fontsize=18)
+        
+        # Set tick parameters globally for this axis
+        ax.tick_params(axis='both', which='major', labelsize=15)
+        
+        if any(len(d) > 0 for d in data_list):
+            bp = ax.boxplot(data_list, positions=positions, widths=box_width,
+                           patch_artist=True, showfliers=True,
+                           flierprops=dict(marker='o', markersize=4, alpha=0.5),
+                           medianprops=dict(color='black', linewidth=2),
+                           whiskerprops=dict(linewidth=1.2),
+                           capprops=dict(linewidth=1.2))
+            
+            for patch, color in zip(bp['boxes'], box_colors):
+                patch.set_facecolor(color)
+                patch.set_alpha(0.7)
+        else:
+            ax.text(0.5, 0.5, 'No Data Available', ha='center', va='center', 
+                    transform=ax.transAxes, fontsize=18, color='gray', style='italic')
+        
+        cat_positions = [gi * group_width for gi in range(len(categories))]
+        ax.set_xticks(cat_positions)
+        ax.set_xticklabels(categories, fontsize=18) 
+        
         ax.grid(True, axis='y', alpha=0.2)
         ax.set_ylim(bottom=0)
         
@@ -173,7 +185,7 @@ def make_boxplots(df):
             Patch(facecolor=colors[0], alpha=0.7, label='Harmonic Comb'),
             Patch(facecolor=colors[1], alpha=0.7, label='Calibrated (all)'),
         ]
-        ax.legend(handles=legend_elements, loc='upper left', fontsize=10)
+        ax.legend(handles=legend_elements, loc='upper left', fontsize=16)
     
     plt.tight_layout()
     fig.savefig(OUTDIR / 'boxplot_comparison.png', dpi=150, bbox_inches='tight')
@@ -194,7 +206,7 @@ def make_detailed_boxplots(df):
         fig, axes_arr = plt.subplots(1, 3, figsize=(18, 6), sharey=True)
         dim = 'Lateral (X)' if axis == 'x' else 'Depth (Y)'
         fig.suptitle(f'{dim} Axis — Per-Category Error Boxplots', 
-                     fontsize=14, fontweight='bold', y=1.02)
+                     fontsize=22, fontweight='bold', y=1.02)
         
         for ci, cat in enumerate(categories):
             ax = axes_arr[ci]
@@ -202,16 +214,19 @@ def make_detailed_boxplots(df):
             labels = []
             box_colors_list = []
             
+            ax.tick_params(axis='both', which='major', labelsize=15)
+            
             for app in approaches:
                 mask = (sub['category'] == cat) & (sub['approach'] == app)
                 errors = sub.loc[mask, 'error'].values
-                if len(errors) > 0:
-                    data_list.append(errors)
-                    nice_name = 'Harmonic Comb' if app == 'harmonic_comb' else 'Calibrated'
-                    labels.append(nice_name)
-                    box_colors_list.append(colors[app])
+                
+                data_list.append(errors if len(errors) > 0 else [])
+                
+                nice_name = 'Harmonic Comb' if app == 'harmonic_comb' else 'Calibrated'
+                labels.append(nice_name)
+                box_colors_list.append(colors[app])
             
-            if data_list:
+            if any(len(d) > 0 for d in data_list):
                 bp = ax.boxplot(data_list, labels=labels,
                                patch_artist=True, showfliers=True,
                                notch=True,
@@ -225,16 +240,22 @@ def make_detailed_boxplots(df):
                     patch.set_facecolor(color)
                     patch.set_alpha(0.7)
                 
-                # Add median value annotation
                 for i, d in enumerate(data_list):
-                    med = np.median(d)
-                    ax.annotate(f'{med:.1f}mm', xy=(i + 1, med),
-                               xytext=(15, 5), textcoords='offset points',
-                               fontsize=9, fontweight='bold',
-                               arrowprops=dict(arrowstyle='->', color='gray', lw=0.8))
+                    if len(d) > 0:
+                        med = np.median(d)
+                        ax.annotate(f'{med:.1f}mm', xy=(i + 1, med),
+                                   xytext=(15, 5), textcoords='offset points',
+                                   fontsize=15, fontweight='bold',
+                                   arrowprops=dict(arrowstyle='->', color='gray', lw=0.8))
+            else:
+                ax.text(0.5, 0.5, 'No Data Available', ha='center', va='center', 
+                        transform=ax.transAxes, fontsize=15, color='gray', style='italic')
+                ax.set_xticks([1, 2])
+                ax.set_xticklabels(labels, fontsize=15)
             
-            ax.set_title(cat, fontsize=12, fontweight='bold')
-            ax.set_ylabel('Error (mm)' if ci == 0 else '')
+            ax.set_title(cat, fontsize=20, fontweight='bold')
+            ax.set_ylabel('Error (mm)' if ci == 0 else '', fontsize=18)
+            
             ax.grid(True, axis='y', alpha=0.2)
             ax.set_ylim(bottom=0)
         
@@ -248,7 +269,7 @@ def print_median_table(df):
     """Print text-based median comparison tables."""
     for axis in ['x', 'y']:
         sub = df[df['axis'] == axis]
-        dim = 'LATERAL (X)' if axis == 'x' else 'DEPTH (Y)'
+        dim = 'LATERAL (X)' if axis == 'x' else 'Depth (Y)'
         
         print(f"\n{'═' * 60}")
         print(f"  MEDIAN ERROR COMPARISON — {dim} AXIS")
@@ -271,6 +292,45 @@ def print_median_table(df):
         print(f"{'═' * 60}")
 
 
+
+
+def run_statistical_analysis(df):
+    """Outputs Mean, Std, Variance, and Wilcoxon p-values for all conditions."""
+    print(f"\n{'═' * 80}")
+    print(f"  EXTENSIVE STATISTICAL ANALYSIS (Mean, Std, Variance, p-values)")
+    print(f"{'═' * 80}")
+    
+    stats_data = []
+    for axis in ['x', 'y']:
+        sub = df[df['axis'] == axis]
+        print(f"\n  --- {axis.upper()} AXIS ---")
+        
+        for cat in ['Patch', 'Chicken', 'Pork']:
+            hc_mask = (sub['category'] == cat) & (sub['approach'] == 'harmonic_comb')
+            cal_mask = (sub['category'] == cat) & (sub['approach'] == 'calibrated')
+            
+            hc_df = sub[hc_mask][['target_pos', 'error']].rename(columns={'error': 'hc_err'})
+            cal_df = sub[cal_mask][['target_pos', 'error']].rename(columns={'error': 'cal_err'})
+            merged = pd.merge(hc_df, cal_df, on='target_pos', how='inner')
+            
+            p_val = float('nan')
+            if len(merged) > 5:
+                try:
+                    _, p_val = stats.wilcoxon(merged['hc_err'], merged['cal_err'])
+                except ValueError:
+                    pass
+            
+            hc_errs, cal_errs = merged['hc_err'].values, merged['cal_err'].values
+            print(f"  {cat}:")
+            if len(hc_errs) > 0:
+                print(f"    HC   -> Median: {np.median(hc_errs):6.1f} | Mean: {np.mean(hc_errs):6.1f} | Std: {np.std(hc_errs):6.1f} | Var: {np.var(hc_errs):7.1f}")
+            if len(cal_errs) > 0:
+                print(f"    Cal  -> Median: {np.median(cal_errs):6.1f} | Mean: {np.mean(cal_errs):6.1f} | Std: {np.std(cal_errs):6.1f} | Var: {np.var(cal_errs):7.1f}")
+            print(f"    Wilcoxon p-value (HC vs Cal): {p_val:.4e}\n")
+            
+            # Save to list for CSV export...
+
+
 if __name__ == '__main__':
     print("Loading results...")
     df = load_results()
@@ -283,5 +343,7 @@ if __name__ == '__main__':
     print("\n2. Boxplots...")
     make_boxplots(df)
     make_detailed_boxplots(df)
+
+    run_statistical_analysis(df)
     
     print("\nDone!")

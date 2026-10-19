@@ -52,7 +52,7 @@ def compare_effective_distances():
     # Test across a range of target positions
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
     fig.suptitle('Effective Round-Trip Distance: Free-Space vs Tissue Model',
-                 fontsize=14, fontweight='bold')
+                 fontsize=18, fontweight='bold')
 
     for ai, axis in enumerate(['x', 'y']):
         tps = np.arange(-180, 181, 10)
@@ -81,9 +81,9 @@ def compare_effective_distances():
 
             ax.set_xlabel(f'Target Pos (mm)')
             ax.set_ylabel('D_tissue - D_freespace (mm)')
-            ax.set_title(f'{category} / {dim}', fontsize=11, fontweight='bold')
+            ax.set_title(f'{category} / {dim}', fontsize=16, fontweight='bold')
             ax.grid(True, alpha=0.15)
-            ax.legend(fontsize=8)
+            ax.legend(fontsize=14)
             ax.axhline(0, color='gray', ls='--', alpha=0.3)
 
     plt.tight_layout()
@@ -106,7 +106,7 @@ def compare_phase_impact():
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle('Phase Correction from Tissue Model (center antenna)',
-                 fontsize=14, fontweight='bold')
+                 fontsize=18, fontweight='bold')
 
     freqs = ALL_HARMONICS
     freq_hz = np.array([FREQ_TO_HZ[f] for f in freqs])
@@ -134,9 +134,9 @@ def compare_phase_impact():
 
             ax.set_xlabel('Target Pos (mm)')
             ax.set_ylabel('Phase correction (°)')
-            ax.set_title(f'{category} / {dim}-axis', fontsize=11, fontweight='bold')
+            ax.set_title(f'{category} / {dim}-axis', fontsize=16, fontweight='bold')
             ax.grid(True, alpha=0.15)
-            ax.legend(fontsize=7, ncol=2)
+            ax.legend(fontsize=12, ncol=2)
 
     plt.tight_layout()
     fig.savefig(OUTDIR / 'phase_correction.png', dpi=150, bbox_inches='tight')
@@ -235,7 +235,7 @@ def measure_phase_vs_model(df):
     fig, axes = plt.subplots(4, 2, figsize=(16, 20))
     fig.suptitle('Measured vs Model Phase (Δφ from calibration)\n'
                  '— Center antenna, 1700 MHz —',
-                 fontsize=14, fontweight='bold', y=1.01)
+                 fontsize=18, fontweight='bold', y=1.01)
 
     freq = 1700
     f_hz = FREQ_TO_HZ[freq]
@@ -325,7 +325,7 @@ def measure_phase_vs_model(df):
             ax.set_xlabel('Target Pos (mm)')
             ax.set_ylabel('Δφ (deg, wrapped)')
             ax.set_title(f'{category}/{dim} — Wrapped Δφ at {freq} MHz',
-                        fontsize=10, fontweight='bold')
+                        fontsize=14, fontweight='bold')
             ax.legend(fontsize=7)
             ax.grid(True, alpha=0.15)
 
@@ -337,8 +337,8 @@ def measure_phase_vs_model(df):
             ax2.set_xlabel('Target Pos (mm)')
             ax2.set_ylabel('Complex residual |e^jΔφ_meas - e^jΔφ_model|')
             ax2.set_title(f'{category}/{dim} — Phase prediction residual',
-                         fontsize=10, fontweight='bold')
-            ax2.legend(fontsize=8)
+                         fontsize=14, fontweight='bold')
+            ax2.legend(fontsize=12)
             ax2.grid(True, alpha=0.15)
             ax2.set_ylim(bottom=0)
 
