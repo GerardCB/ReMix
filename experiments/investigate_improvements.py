@@ -274,6 +274,8 @@ def main():
     imp1_results = []
 
     for axis in axes_to_test:
+        dim = 'X' if axis == 'x' else 'Y'
+        
         for category in categories:
             agg = get_aggregated_data(df, category, axis)
             if agg.empty:
@@ -322,7 +324,6 @@ def main():
                     'orig_est': orig_est, 'impr_est': impr_est,
                 })
 
-            dim = 'X' if axis == 'x' else 'Y'
             orig_med = np.median(orig_errors) if orig_errors else float('nan')
             impr_med = np.median(impr_errors) if impr_errors else float('nan')
             delta = orig_med - impr_med
@@ -331,7 +332,6 @@ def main():
                   f"improved={impr_med:6.1f}mm  "
                   f"{arrow}{abs(delta):.1f}mm")
 
-    # Save improvement 1 results
     if imp1_results:
         imp1_df = pd.DataFrame(imp1_results)
         imp1_df.to_csv(OUTDIR / 'improvement1_results.csv', index=False)
@@ -407,10 +407,11 @@ def main():
             dim = 'X' if axis == 'x' else 'Y'
             label = f"{category}/{dim}"
 
-            # HC original
+            # Safely filter the harmonic comb to ONLY the baseline pair ('pair_a')
             hc_mask = ((orig_df['category'] == category) &
                        (orig_df['axis'] == axis) &
-                       (orig_df['approach'] == 'harmonic_comb'))
+                       (orig_df['approach'] == 'harmonic_comb') &
+                       (orig_df['freqs'] == 'pair_a'))
             hc_med = orig_df.loc[hc_mask, 'error'].median() if hc_mask.any() else np.nan
 
             # Cal original
@@ -459,14 +460,14 @@ def main():
     # ─────────────────────────────────────────────────────────────
     fig, axes_arr = plt.subplots(1, 3, figsize=(18, 6))
     fig.suptitle('Y-Axis: Original vs Improved Calibrated Localizer',
-                 fontsize=14, fontweight='bold')
+                 fontsize=22, fontweight='bold')
 
     for ci, category in enumerate(categories):
         ax = axes_arr[ci]
         i1_sub = [r for r in imp1_results
                   if r['axis'] == 'y' and r['category'] == category]
         if not i1_sub:
-            ax.set_title(f'{category} — no data')
+            ax.set_title(f'{category} — no data', fontsize=18, fontweight='bold')
             continue
 
         tps = np.array([r['tp'] for r in i1_sub])
@@ -482,18 +483,27 @@ def main():
         ax.plot(tps, impr_err, 'g-s', ms=4, alpha=0.7, label='Improved')
         ax.axhline(50, color='gray', ls='--', alpha=0.3)
         ax.fill_between(tps, 0, 50, alpha=0.05, color='green')
-        ax.set_xlabel('Target Position (mm)')
-        ax.set_ylabel('Error (mm)')
-        ax.set_title(f'{category}', fontsize=12, fontweight='bold')
-        ax.legend(fontsize=9)
-        ax.set_ylim(bottom=0)
+        
+        ax.set_xlabel('Target Position (mm)', fontsize=18)
+        
+        # Only set Y-axis label for the leftmost plot
+        if ci == 0:
+            ax.set_ylabel('Error (mm)', fontsize=18)
+            
+        ax.set_title(f'{category}', fontsize=18, fontweight='bold')
+        ax.legend(fontsize=15, loc='upper right')
+        
+        # Globally enforced Y-axis range
+        ax.set_ylim(0, 350)
+        
         ax.grid(True, alpha=0.15)
+        ax.tick_params(axis='both', which='major', labelsize=15)
 
         orig_med = np.median(orig_err)
         impr_med = np.median(impr_err)
         ax.text(0.02, 0.98, f'Orig median: {orig_med:.1f}mm\n'
-                              f'Impr median: {impr_med:.1f}mm',
-                transform=ax.transAxes, fontsize=9, va='top',
+                            f'Impr median: {impr_med:.1f}mm',
+                transform=ax.transAxes, fontsize=15, va='top',
                 bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
     plt.tight_layout()
@@ -501,20 +511,23 @@ def main():
     plt.close(fig)
     print(f"\n✓ Saved {OUTDIR / 'y_axis_improvement.png'}")
 
+    # ─────────────────────────────────────────────────────────────
     # Visualization: Ensemble comparison
+    # ─────────────────────────────────────────────────────────────
     fig, axes_arr = plt.subplots(2, 3, figsize=(18, 10))
     fig.suptitle('Ensemble vs Single-Pair Localization',
-                 fontsize=14, fontweight='bold')
+                 fontsize=22, fontweight='bold')
 
     for ai, axis in enumerate(axes_to_test):
         dim = 'X' if axis == 'x' else 'Y'
         for ci, category in enumerate(categories):
             ax = axes_arr[ai][ci]
 
-            # Get original HC results
+            # Filter to 'pair_a' to isolate the single HC 790,1700 baseline smoothly
             hc_mask = ((orig_df['category'] == category) &
                        (orig_df['axis'] == axis) &
-                       (orig_df['approach'] == 'harmonic_comb'))
+                       (orig_df['approach'] == 'harmonic_comb') &
+                       (orig_df['freqs'] == 'pair_a'))
             hc_sub = orig_df.loc[hc_mask].sort_values('target_pos')
 
             # Get ensemble results
@@ -522,7 +535,7 @@ def main():
                       if r['axis'] == axis and r['category'] == category]
 
             if not i2_sub:
-                ax.set_title(f'{category}/{dim} — no data', fontsize=9)
+                ax.set_title(f'{category}/{dim} — no data', fontsize=16)
                 continue
 
             i2_tps = np.array([r['target_pos'] for r in i2_sub])
@@ -535,14 +548,24 @@ def main():
                 ax.plot(hc_sub['target_pos'], hc_sub['error'],
                        'r-o', ms=3, alpha=0.6, label='HC(790,1700)')
             ax.plot(i2_tps, i2_trim_err, 'g-s', ms=3, alpha=0.7,
-                   label='Ensemble(top5)')
+                    label='Ensemble(top5)')
             ax.axhline(50, color='gray', ls='--', alpha=0.3)
-            ax.set_xlabel('Target Pos (mm)')
-            ax.set_ylabel('Error (mm)')
-            ax.set_title(f'{category}/{dim}', fontsize=10, fontweight='bold')
-            ax.legend(fontsize=8)
+            
+            # Layout logic: Only apply X labels to the bottom row (ai == 1)
+            if ai == 1:
+                ax.set_xlabel('Target Pos (mm)', fontsize=18)
+            else:
+                ax.set_xticklabels([])
+                
+            # Layout logic: Only apply Y labels to the leftmost column (ci == 0)
+            if ci == 0:
+                ax.set_ylabel('Error (mm)', fontsize=18)
+                
+            ax.set_title(f'{category}/{dim}', fontsize=18, fontweight='bold')
+            ax.legend(fontsize=15)
             ax.set_ylim(bottom=0)
             ax.grid(True, alpha=0.15)
+            ax.tick_params(axis='both', which='major', labelsize=15)
 
     plt.tight_layout()
     fig.savefig(OUTDIR / 'ensemble_comparison.png', dpi=150, bbox_inches='tight')

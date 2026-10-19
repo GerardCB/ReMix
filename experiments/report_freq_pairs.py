@@ -278,16 +278,23 @@ def main():
         dim = 'Lateral (X)' if axis == 'x' else 'Depth (Y)'
         sub = summary_df[summary_df['axis'] == axis]
         
-        fig, axes_arr = plt.subplots(1, 3, figsize=(20, 6))
+        # Calculate a unified vmax limit for consistent coloring across subplots
+        # Bound it at 200 so horrible outliers don't wash out the color map completely
+        if not sub.empty:
+            global_vmax = min(200, np.nanmax(sub['median_error']))
+        else:
+            global_vmax = 200
+        
+        fig, axes_arr = plt.subplots(1, 3, figsize=(22, 7))
         fig.suptitle(f'Harmonic Comb: Median Error by Frequency Pair — {dim} Axis',
-                     fontsize=14, fontweight='bold')
+                     fontsize=22, fontweight='bold')
         
         for ci, cat in enumerate(categories):
             ax = axes_arr[ci]
             cat_sub = sub[sub['category'] == cat]
             
             if cat_sub.empty:
-                ax.set_title(f'{cat} — no data')
+                ax.set_title(f'{cat} — no data', fontsize=20, fontweight='bold')
                 continue
             
             # Create matrix
@@ -302,26 +309,31 @@ def main():
                 matrix[j, i] = row['median_error']
             
             im = ax.imshow(matrix, cmap='RdYlGn_r', aspect='equal',
-                          vmin=0, vmax=min(200, np.nanmax(matrix)))
+                           vmin=0, vmax=global_vmax)
+            
             ax.set_xticks(range(n))
             ax.set_yticks(range(n))
-            ax.set_xticklabels(freqs, rotation=45, fontsize=8)
-            ax.set_yticklabels(freqs, fontsize=8)
-            ax.set_title(f'{cat}', fontsize=12, fontweight='bold')
-            ax.set_xlabel('Freq B (MHz)')
-            ax.set_ylabel('Freq A (MHz)')
+            ax.set_xticklabels(freqs, rotation=45, fontsize=15)
+            ax.set_yticklabels(freqs, fontsize=15)
             
-            # Annotate cells
+            ax.set_title(f'{cat}', fontsize=20, fontweight='bold')
+            ax.set_xlabel('Freq B (MHz)', fontsize=18)
+            
+            if ci == 0:
+                ax.set_ylabel('Freq A (MHz)', fontsize=18)
+            
+            # Annotate cells (Unconditionally black text, larger font)
             for i in range(n):
                 for j in range(n):
                     if not np.isnan(matrix[i, j]):
                         val = matrix[i, j]
-                        color = 'white' if val > 100 else 'black'
                         ax.text(j, i, f'{val:.0f}',
                                ha='center', va='center',
-                               fontsize=7, color=color, fontweight='bold')
+                               fontsize=14, color='black', fontweight='bold')
             
-            plt.colorbar(im, ax=ax, label='Median Error (mm)', shrink=0.8)
+            cbar = plt.colorbar(im, ax=ax, shrink=0.8)
+            cbar.set_label('Median Error (mm)', fontsize=18)
+            cbar.ax.tick_params(labelsize=14)
         
         plt.tight_layout()
         fig.savefig(OUTDIR / f'freq_pair_heatmap_{axis}.png',
@@ -334,16 +346,16 @@ def main():
         dim = 'Lateral (X)' if axis == 'x' else 'Depth (Y)'
         sub = summary_df[summary_df['axis'] == axis]
         
-        fig, axes_arr = plt.subplots(3, 1, figsize=(14, 12))
+        fig, axes_arr = plt.subplots(3, 1, figsize=(15, 14))
         fig.suptitle(f'Best & Worst Frequency Pairs — {dim} Axis',
-                     fontsize=14, fontweight='bold')
+                     fontsize=22, fontweight='bold')
         
         for ci, cat in enumerate(categories):
             ax = axes_arr[ci]
             cat_sub = sub[sub['category'] == cat].sort_values('median_error')
             
             if cat_sub.empty:
-                ax.set_title(f'{cat} — no data')
+                ax.set_title(f'{cat} — no data', fontsize=20, fontweight='bold')
                 continue
             
             # Show all pairs sorted
@@ -355,15 +367,19 @@ def main():
             
             ax.barh(range(len(labels)), medians, color=colors, alpha=0.8)
             ax.set_yticks(range(len(labels)))
-            ax.set_yticklabels(labels, fontsize=8)
-            ax.set_xlabel('Median Error (mm)')
-            ax.set_title(f'{cat}', fontsize=12, fontweight='bold')
+            ax.set_yticklabels(labels, fontsize=14)
+            
+            if ci == 2:
+                ax.set_xlabel('Median Error (mm)', fontsize=18)
+                
+            ax.set_title(f'{cat}', fontsize=20, fontweight='bold')
             ax.invert_yaxis()
             ax.grid(True, axis='x', alpha=0.2)
+            ax.tick_params(axis='x', which='major', labelsize=15)
             
             # Annotate values
             for i, (lbl, med) in enumerate(zip(labels, medians)):
-                ax.text(med + 2, i, f'{med:.1f}mm', va='center', fontsize=8)
+                ax.text(med + 2, i, f'{med:.1f}mm', va='center', fontsize=14)
         
         plt.tight_layout()
         fig.savefig(OUTDIR / f'freq_pair_ranking_{axis}.png',

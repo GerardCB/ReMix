@@ -162,22 +162,22 @@ def main():
 
             # Column title — top row only
             if ri == 0:
-                ax.set_title(cat, fontsize=12, fontweight='bold', pad=6)
+                ax.set_title(cat, fontsize=16, fontweight='bold', pad=6)
 
             # Row label — left column only
             if ci == 0:
                 ax.set_ylabel(
                     f'{axis_labels[axis]}\nEstimated (mm)',
-                    fontsize=9, labelpad=4,
+                    fontsize=12, labelpad=4,
                 )
 
             # X-axis label — bottom row only
             if ri == len(axes) - 1:
-                ax.set_xlabel('Ground Truth (mm)', fontsize=9)
+                ax.set_xlabel('Ground Truth (mm)', fontsize=12)
 
             # Per-panel legend
             leg = ax.legend(
-                fontsize=7.5, loc='upper left',
+                fontsize=12, loc='upper left',
                 framealpha=0.88, edgecolor='#ccc',
                 handletextpad=0.4, borderpad=0.5,
                 markerscale=1.2,
@@ -185,7 +185,7 @@ def main():
             leg.get_frame().set_linewidth(0.5)
 
     fig.suptitle('Estimated vs Ground Truth Position',
-                 fontsize=13, fontweight='bold', y=0.998)
+                 fontsize=16, fontweight='bold', y=0.998)
 
     outpath = OUTDIR / 'overview_predictions.png'
     fig.savefig(outpath, dpi=180, bbox_inches='tight')
